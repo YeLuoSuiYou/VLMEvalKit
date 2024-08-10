@@ -1,12 +1,13 @@
 import sys
+
 import hydra
 import torch
+import torch.nn as nn
 from omegaconf import OmegaConf
 from PIL import Image
 
-from .base import BaseModel
 from ..smp import *
-
+from .base import BaseModel
 
 # path of MLLM_Train
 sys.path.append("/yezilyu/code/MLLM_Train")
@@ -53,8 +54,8 @@ llm_cfg_path = "configs/models/llm_lora_2ffn.yaml"
 class ContinuousLVLMEval(BaseModel):
     def __init__(
         self,
-        input_resampler=Resampler(8, 4096, 32, 1792),
-        output_resampler=Resampler(8, 1792, 32, 4096),
+        input_resampler=nn.Linear(1792, 4096),
+        output_resampler=nn.Linear(4096, 1792),
         vit_down=False,
         mse=True,
         lm_loss_scale=1.0,
@@ -99,18 +100,17 @@ class ContinuousLVLMEval(BaseModel):
         self.agent_model.cuda().eval().to(dtype=self.dtype)
 
     def generate_inner(self, message, dataset=None):
-        content, images, cmp_mask, gen_mask = (
-            "",
-            [],
-            torch.tensor([], dtype=torch.bool),
-            torch.tensor([], dtype=torch.bool),
-        )
+        content, images, cmp_mask, gen_mask, input_ids = "", [], torch.tensor([], dtype=torch.bool), torch.tensor([], dtype=torch.bool), []
         for msg in message:
             if msg["type"] == "text":
+                input_ids.append(self.tokenizer.bos_token_id)
                 content += msg["value"]
+                input_ids += self.tokenizer.encode(msg["value"], add_special_tokens=False)
+                input_ids.append(self.tokenizer.eos_token_id)
             else:
                 images.append(Image.open(msg["value"]).convert("RGB"))
                 content += self.default_image_tokens + "\n"
+                input_ids += self.tokenizer.encode(self.default_image_tokens, add_special_tokens=False)
                 cmp_mask = torch.cat([cmp_mask, torch.tensor([True])])
                 gen_mask = torch.cat([gen_mask, torch.tensor([False])])
 
@@ -125,8 +125,6 @@ class ContinuousLVLMEval(BaseModel):
         img_tensor = [self.image_transform(image).cuda().to(dtype=self.dtype) for image in images]
         img_tensor = [self.visual_encoder.encode_image(tensor.unsqueeze(0)) for tensor in img_tensor]
         img_tensors = torch.stack(img_tensor).squeeze().cuda() if len(img_tensor) > 0 else None
-        input_ids = self.tokenizer.encode(content, add_special_tokens=False)
-        input_ids = [self.tokenizer.bos_token_id] + input_ids + [self.tokenizer.eos_token_id]
         boi_token_id = self.tokenizer.encode(BOI_TOKEN, add_special_tokens=False)[0]
         eoi_token_id = self.tokenizer.encode(EOI_TOKEN, add_special_tokens=False)[0]
         boi_idx = input_ids.index(boi_token_id)
@@ -144,7 +142,9 @@ class ContinuousLVLMEval(BaseModel):
             num_img_gen_tokens=num_img_out_tokens,
             ids_cmp_mask=ids_cmp_mask.unsqueeze(0),
             embeds_cmp_mask=cmp_mask,
+            max_new_tokens=300,
         )
         text_output = output["text"]
-        print(text_output)
+        print("input: ", content)
+        print("output: ", text_output)
         return text_output
