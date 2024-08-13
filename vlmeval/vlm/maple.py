@@ -1,4 +1,5 @@
 import sys
+import pyrootutils
 from typing import List, Literal, Sequence, TypedDict
 
 import hydra
@@ -12,7 +13,7 @@ from ..smp import *
 from .base import BaseModel
 
 # path of MLLM_Train
-sys.path.append("/yezilyu/code/MLLM_Train")
+pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 from src.models.mllm.maple import ContinuousLVLM
 
 # Constants
@@ -136,7 +137,7 @@ class ContinuousLVLMEval(BaseModel):
                 input_ids.append(self.tokenizer.bos_token_id)
                 input_ids.extend(self.tokenizer.encode(msg["value"], add_special_tokens=False))
                 input_ids.append(self.tokenizer.eos_token_id)
-                content += "<|begin_of_text|>" + msg["value"] + "<|eos_id|>"
+                content += "<|begin_of_text|>" + msg["value"] + "<|eot_id|>"
             else:
                 images.append(Image.open(msg["value"]).convert("RGB"))
                 content += self.default_image_tokens
@@ -181,6 +182,7 @@ class ContinuousLVLMEval(BaseModel):
             embeds_cmp_mask=cmp_mask,
             max_new_tokens=300,
         )
-        print(content)
+        print("input: ", content)
+        print("output: ", output["text"])
         text_output = output["text"]
         return text_output
