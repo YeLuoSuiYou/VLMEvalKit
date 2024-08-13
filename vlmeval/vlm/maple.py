@@ -13,7 +13,6 @@ from .base import BaseModel
 
 # path of MLLM_Train
 sys.path.append("/yezilyu/code/MLLM_Train")
-from src.models.encoder.resampler import Resampler
 from src.models.mllm.maple import ContinuousLVLM
 
 # Constants
@@ -32,7 +31,7 @@ guidance_scale = 3.0
 do_classifier_free_guidance = guidance_scale > 1.0
 max_length = 100
 
-tokenizer_cfg_path = "configs/tokenizer/llama3_1_sft.yaml"
+tokenizer_cfg_path = "configs/tokenizer/llama3_1.yaml"
 image_transform_cfg_path = "configs/processor/transform_maple.yaml"
 visual_encoder_cfg_path = "configs/visual_encoder/eva_vit_448.yaml"
 llm_cfg_path = "configs/models/llm_lora_2ffn.yaml"
@@ -142,12 +141,16 @@ class ContinuousLVLMEval(BaseModel):
             else:
                 images.append(Image.open(msg["value"]).convert("RGB"))
                 content += self.default_image_tokens
-                input_ids += self.tokenizer.encode(self.default_image_tokens, add_special_tokens=False)
+                input_ids.extend(self.tokenizer.encode(self.default_image_tokens, add_special_tokens=False))
                 cmp_mask = torch.cat([cmp_mask, torch.tensor([True])])
                 gen_mask = torch.cat([gen_mask, torch.tensor([False])])
 
+        # add assistant header
         content += "<|start of header|>assistant<|end of header|>\n\n"
         input_ids.extend(self.formatter.encode_header({"role": "assistant", "content": ""}))
+        # append bos token to invoke the model output text
+        content += "<|begin_of_text|>"
+        input_ids.append(self.tokenizer.bos_token_id)
 
         if len(cmp_mask) == 0:
             cmp_mask = None
