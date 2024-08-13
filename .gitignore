@@ -123,6 +123,7 @@ celerybeat.pid
 
 # Environments
 .venv
+.env
 env/
 venv/
 ENV/
@@ -158,3 +159,5 @@ images/
 
 scripts/*ttf
 cache_dir/*
+
+*.ipynb

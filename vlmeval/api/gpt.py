@@ -164,20 +164,40 @@ class OpenAIWrapper(BaseAPI):
             input_msgs.append(dict(role='user', content=self.prepare_itlist(inputs)))
         return input_msgs
 
+    def prepare_inputs_deepseek(self, inputs):
+        input_msgs = []
+        if self.system_prompt is not None:
+            input_msgs.append(dict(role="system", content=self.system_prompt))
+        assert isinstance(inputs, list) and isinstance(inputs[0], dict)
+        # assert np.all(["type" in x for x in inputs]) or np.all(["role" in x for x in inputs]), inputs
+        if "role" in inputs[0]:
+            assert inputs[-1]["role"] == "user", inputs[-1]
+            for item in inputs:
+                input_msgs.append(item)
+        else:
+            for item in inputs:
+                input_msgs.append(dict(role="user", content=item["value"]))
+        return input_msgs
+
     def generate_inner(self, inputs, **kwargs) -> str:
-        input_msgs = self.prepare_inputs(inputs)
+        if "deepseek" in self.model:
+            input_msgs = self.prepare_inputs_deepseek(inputs)
+        else:
+            input_msgs = self.prepare_inputs(inputs)
+        print(input_msgs)
+        # in order to fit deepseek api
         temperature = kwargs.pop('temperature', self.temperature)
         max_tokens = kwargs.pop('max_tokens', self.max_tokens)
 
-        context_window = GPT_context_window(self.model)
-        max_tokens = min(max_tokens, context_window - self.get_token_len(inputs))
-        if 0 < max_tokens <= 100:
-            self.logger.warning(
-                'Less than 100 tokens left, '
-                'may exceed the context window with some additional meta symbols. '
-            )
-        if max_tokens <= 0:
-            return 0, self.fail_msg + 'Input string longer than context window. ', 'Length Exceeded. '
+        # context_window = GPT_context_window(self.model)
+        # max_tokens = min(max_tokens, context_window - self.get_token_len(inputs))
+        # if 0 < max_tokens <= 100:
+        #     self.logger.warning(
+        #         'Less than 100 tokens left, '
+        #         'may exceed the context window with some additional meta symbols. '
+        #     )
+        # if max_tokens <= 0:
+        #     return 0, self.fail_msg + 'Input string longer than context window. ', 'Length Exceeded. '
 
         # Will send request if use Azure, dk how to use openai client for it
         if self.use_azure:
