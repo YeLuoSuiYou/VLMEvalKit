@@ -123,7 +123,6 @@ class ContinuousLVLMEval(BaseModel):
             rec_loss_scale=rec_loss_scale,
             pretrained_model_path=pretrained_model_path,
         )
-        self.agent_model.llm.merge_and_unload()
         self.agent_model.llm.compile()
         self.agent_model.cuda().eval().to(dtype=self.dtype)
 
@@ -182,5 +181,6 @@ class ContinuousLVLMEval(BaseModel):
             embeds_cmp_mask=cmp_mask,
             max_new_tokens=300,
         )
+        print(content)
         text_output = output["text"]
         return text_output
