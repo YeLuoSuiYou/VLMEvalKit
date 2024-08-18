@@ -207,7 +207,7 @@ mantis_series = {
 supported_VLM = {
     "MapleMLLM": partial(
         ContinuousLVLMEval,
-        pretrained_model_path="/yezilyu/code/MLLM_Train/debug_out/vqa_llava_sharegpt_2ffn_20240813_031202/checkpoint-10000/pytorch_model.bin",
+        pretrained_model_path="/yezilyu/code/MLLM_Train/debug_out/vqa_llava_sharegpt_enable_2ffn_20240815_133241/checkpoint-5000/pytorch_model.bin",
     )
 }
 
